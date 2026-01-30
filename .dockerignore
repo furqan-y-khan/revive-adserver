@@ -31,10 +31,11 @@ SECURITY.md
 *.swp
 *.swo
 
-# Docker
+# Docker (keep docker/ for config files)
 Dockerfile
 docker-compose.yml
-docker/
+cloudbuild.yaml
+deploy/
 
 # Cache and temp files (will be created at runtime)
 var/cache/*
