@@ -21,18 +21,18 @@ RUN apt-get update && apt-get install -y \
 # Install PHP extensions required by Revive Adserver
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j$(nproc) \
-        gd \
-        intl \
-        mysqli \
-        pdo \
-        pdo_mysql \
-        zip \
-        xml \
-        mbstring \
-        opcache
+    gd \
+    intl \
+    mysqli \
+    pdo \
+    pdo_mysql \
+    zip \
+    xml \
+    mbstring \
+    opcache
 
-# Enable Apache modules
-RUN a2enmod rewrite headers expires
+# Enable Apache modules (including remoteip for Cloud Run proxy)
+RUN a2enmod rewrite headers expires remoteip
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -51,6 +51,10 @@ COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
 
 # Copy Apache configuration
 COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
+
+# Copy and setup entrypoint script
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Set proper permissions for var directory (cache, templates, plugins)
 RUN chown -R www-data:www-data /var/www/html \
@@ -79,5 +83,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT}/ || exit 1
 
-# Start Apache
+# Use entrypoint to handle Cloud Run proxy setup
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["apache2-foreground"]
+
