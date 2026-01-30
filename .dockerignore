@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+.git-blame-ignore-revs
+.github
+
+# Development files
+tests/
+tutorials/
+devel-test-example.xml
+phpcs.xml.dist
+phpstan.neon
+phpstan-baseline.neon
+phpstan-bootstrap.php
+ecs.php
+rector.php
+build.xml
+build-filelist.xml
+crowdin.sh
+crowdin.yml.dist
+
+# Documentation
+README.md
+CHANGELOG.md
+RELEASE_NOTES.txt
+SECURITY.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker/
+
+# Cache and temp files (will be created at runtime)
+var/cache/*
+var/templates_compiled/*
+!var/cache/.gitkeep
+!var/templates_compiled/.gitkeep
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Composer dev dependencies (we install prod only in Docker)
+lib/vendor/phpunit/
+lib/vendor/phpstan/
+lib/vendor/rector/
+lib/vendor/symplify/

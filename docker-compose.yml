@@ -1,0 +1,81 @@
+# Docker Compose for local development
+# Run: docker-compose up --build
+
+version: '3.8'
+
+services:
+  # Revive Adserver Application
+  revive:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: revive-adserver
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      # Database connection (matches MySQL service below)
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=revive_adserver
+      - DB_USER=revive
+      - DB_PASSWORD=revive_password
+    volumes:
+      # Mount var directory for persistence during development
+      - ./var:/var/www/html/var
+      # Mount images/creatives for persistence
+      - ./www/images:/var/www/html/www/images
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - revive-network
+    restart: unless-stopped
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: revive-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: revive_adserver
+      MYSQL_USER: revive
+      MYSQL_PASSWORD: revive_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - revive-network
+    restart: unless-stopped
+
+  # PHPMyAdmin for database management (optional)
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: revive-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - revive-network
+    restart: unless-stopped
+
+networks:
+  revive-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
