@@ -35,7 +35,6 @@ SECURITY.md
 Dockerfile
 docker-compose.yml
 cloudbuild.yaml
-deploy/
 
 # Cache and temp files (will be created at runtime)
 var/cache/*

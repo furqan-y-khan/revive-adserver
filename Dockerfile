@@ -1,22 +1,23 @@
 # Revive Adserver Docker Image
-# PHP 8.1 + Apache for GCP Cloud Run deployment
+# PHP 8.1 + Nginx + PHP-FPM for GCP Cloud Run deployment
 
-FROM php:8.1-apache
+FROM php:8.1-fpm-alpine
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    libfreetype6-dev \
-    libjpeg62-turbo-dev \
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
+    freetype-dev \
+    libjpeg-turbo-dev \
     libpng-dev \
     libwebp-dev \
     libzip-dev \
-    libicu-dev \
+    icu-dev \
     libxml2-dev \
-    libonig-dev \
-    unzip \
-    git \
+    oniguruma-dev \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    git \
+    unzip
 
 # Install PHP extensions required by Revive Adserver
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
@@ -31,9 +32,6 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     mbstring \
     opcache
 
-# Enable Apache modules (including remoteip for Cloud Run proxy)
-RUN a2enmod rewrite headers expires remoteip
-
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -46,44 +44,36 @@ COPY . .
 # Install Composer dependencies (production only)
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Copy custom PHP configuration
-COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
+# Copy Nginx configuration
+COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 
-# Copy Apache configuration
-COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
+# Copy PHP configuration
+COPY docker/php-fpm.ini /usr/local/etc/php/conf.d/custom.ini
 
-# Copy and setup entrypoint script
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# Copy Supervisor configuration
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Set proper permissions for var directory (cache, templates, plugins)
+# Set proper permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
     && chmod -R 777 /var/www/html/var
 
-# Create directories if they don't exist
+# Create required directories
 RUN mkdir -p /var/www/html/var/cache \
     /var/www/html/var/plugins \
     /var/www/html/var/templates_compiled \
+    /run/nginx \
     && chmod -R 777 /var/www/html/var
 
 # Cloud Run uses PORT environment variable
 ENV PORT=8080
-ENV APACHE_RUN_USER=www-data
-ENV APACHE_RUN_GROUP=www-data
-
-# Update Apache to listen on PORT
-RUN sed -i 's/80/${PORT}/g' /etc/apache2/sites-available/000-default.conf \
-    && sed -i 's/80/${PORT}/g' /etc/apache2/ports.conf
 
 # Expose port
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/ || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/ || exit 1
 
-# Use entrypoint to handle Cloud Run proxy setup
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["apache2-foreground"]
-
+# Start Supervisor (manages both nginx and php-fpm)
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

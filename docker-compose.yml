@@ -4,7 +4,7 @@
 version: '3.8'
 
 services:
-  # Revive Adserver Application
+  # Revive Adserver Application (Nginx + PHP-FPM)
   revive:
     build:
       context: .
@@ -14,16 +14,13 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
-      # Database connection (matches MySQL service below)
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_NAME=revive_adserver
       - DB_USER=revive
       - DB_PASSWORD=revive_password
     volumes:
-      # Mount var directory for persistence during development
       - ./var:/var/www/html/var
-      # Mount images/creatives for persistence
       - ./www/images:/var/www/html/www/images
     depends_on:
       mysql:
@@ -55,7 +52,7 @@ services:
       - revive-network
     restart: unless-stopped
 
-  # PHPMyAdmin for database management (optional)
+  # PHPMyAdmin
   phpmyadmin:
     image: phpmyadmin:latest
     container_name: revive-phpmyadmin
